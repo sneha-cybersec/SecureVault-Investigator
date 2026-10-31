@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SecureVault Investigation Platform</title>
+<style>
+:root{--bg:#0e1118;--card:#161b27;--bd:#262d40;--tx:#e7eaf3;--mu:#8e96ab;--ac:#8b7bff;--hi:#ff6674;--me:#f4b13f;--lo:#58a6ff;--ok:#3ecf8e;color-scheme:dark}
+*{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 system-ui,"Segoe UI",sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;padding:12px 24px;border-bottom:1px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+header strong{font-size:17px;letter-spacing:.2px}nav{display:flex;flex-wrap:wrap;gap:4px}
+nav a{color:var(--mu);text-decoration:none;padding:6px 12px;border-radius:6px}nav a:hover{color:var(--tx)}nav a.on{background:#232a40;color:var(--tx)}
+main{max-width:1100px;margin:0 auto;padding:28px 20px 60px}h1{font-size:34px;line-height:1.15;margin:0 0 12px}h2{font-size:21px;margin:28px 0 10px}h3{margin:0 0 6px;font-size:16px}
+p{max-width:72ch}.mu{color:var(--mu)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px}.big{font-size:30px;font-weight:700}
+button,.btn{background:var(--ac);color:#0b0b14;border:0;border-radius:7px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+button.g{background:#232a40;color:var(--tx)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input,select,textarea{width:100%;background:#0f131d;color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:9px;font:inherit;margin:4px 0 12px}
+label{font-weight:600;font-size:14px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd);vertical-align:top}
+.wrap{overflow-x:auto}.tag{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;color:#0b0b14}.High{background:var(--hi)}.Medium{background:var(--me)}.Low{background:var(--lo)}
+.code{background:#0b0e15;border:1px solid var(--bd);border-radius:8px;padding:10px 0;margin:0;overflow:auto;max-height:480px;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.code span{display:block;white-space:pre;padding:0 12px}.code b{color:#4b5470;display:inline-block;width:34px;font-weight:400}.code .bad{background:#ff66741f;box-shadow:inset 3px 0 var(--hi)}.code i{color:var(--hi);margin-left:14px;font-style:normal}
+.bar{height:14px;border-radius:4px;margin:4px 0}.msg{padding:10px 14px;border-radius:8px;margin:10px 0}.err{background:#ff66741f;border:1px solid var(--hi)}.good{background:#3ecf8e1f;border:1px solid var(--ok)}
+.hero{padding:40px 0 20px}.hero h1{font-size:44px;max-width:20ch}.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+.arch{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.arch span{background:#232a40;border-radius:6px;padding:6px 12px}code{background:#0b0e15;padding:1px 6px;border-radius:4px;font-size:13px}
+pre.cmd{background:#0b0e15;padding:6px 10px;border-radius:6px;margin:3px 0;white-space:pre-wrap;word-break:break-all;font-size:12px}
+@media print{header,.noprint{display:none}body{background:#fff;color:#000}.card{background:#fff;border-color:#999}.mu{color:#444}}
+</style></head><body>
+<header><strong>SecureVault Investigator</strong><nav>
+<a href="#home">Home</a><a href="#dash">Dashboard</a><a href="#new">New investigation</a><a href="#analysis">Source analysis</a><a href="#binary">Binary analysis</a><a href="#findings">Findings</a><a href="#report">Report</a><a href="#docs">Docs</a></nav></header>
+<main id="app"></main>
+<script>
+const SAMPLES={
+vulnerable:{name:'vulnerable.c',code:String.raw`#include <stdio.h>
+#include <string.h>
+
+void showProfile(char username[])
+{
+    printf("\n===== USER PROFILE =====\n");
+    printf("Username: %s\n", username);
+    printf("Account Type: Student\n");
+    printf("========================\n");
+}
+
+int checkPassword(char password[])
+{
+    /* VULNERABILITY 1: hard-coded password */
+    char adminPassword[] = "Cyber@123";
+
+    if (strcmp(password, adminPassword) == 0)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+void login()
+{
+    char username[20];
+    char password[20];
+
+    printf("\n===== SECUREVAULT LOGIN =====\n");
+
+    printf("Enter username: ");
+
+    /* VULNERABILITY 2: no maximum input length */
+    scanf("%s", username);
+
+    printf("Enter password: ");
+
+    scanf("%s", password);
+
+    if (checkPassword(password))
+    {
+        printf("\nLogin successful!\n");
+        showProfile(username);
+    }
+    else
+    {
+        printf("\nInvalid username or password!\n");
+    }
+}
+
+void updateAge()
+{
+    int age;
+
+    printf("\n===== UPDATE PROFILE =====\n");
+    printf("Enter your age: ");
+
+    /* VULNERABILITY 3: weak input validation */
+    scanf("%d", &age);
+
+    printf("Age updated successfully to: %d\n", age);
+}
+
+int main()
+{
+    int choice;
+
+    printf("=================================\n");
+    printf("       SECUREVAULT SYSTEM\n");
+    printf("=================================\n");
+
+    while (1)
+    {
+        printf("\n1. Login\n");
+        printf("2. Update Age\n");
+        printf("3. Exit\n");
+
+        printf("\nEnter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice)
+        {
+            case 1:
+                login();
+                break;
+
+            case 2:
+                updateAge();
+                break;
+
+            case 3:
+                printf("\nExiting SecureVault...\n");
+                return 0;
+
+            default:
+                printf("\nInvalid choice!\n");
+        }
+    }
+
+    return 0;
+}`},
+secure:{name:'secure.c',code:String.raw`#include <stdio.h>
+#include <string.h>
+
+#define USERNAME_SIZE 20
+#define PASSWORD_SIZE 100
+
+void showProfile(const char username[])
+{
+    printf("\n===== USER PROFILE =====\n");
+    printf("Username: %s\n", username);
+    printf("Account Type: Student\n");
+    printf("========================\n");
+}
+
+int checkPassword(const char password[], const char adminPassword[])
+{
+    return strcmp(password, adminPassword) == 0;
+}
+
+void login(const char adminPassword[])
+{
+    char username[USERNAME_SIZE];
+    char password[PASSWORD_SIZE];
+
+    printf("\n===== SECUREVAULT LOGIN =====\n");
+    printf("Enter username: ");
+
+    if (scanf("%19s", username) != 1)
+    {
+        printf("Invalid username input.\n");
+        return;
+    }
+
+    printf("Enter password: ");
+
+    if (scanf("%99s", password) != 1)
+    {
+        printf("Invalid password input.\n");
+        return;
+    }
+
+    if (checkPassword(password, adminPassword))
+    {
+        printf("\nLogin successful!\n");
+        showProfile(username);
+    }
+    else
+    {
+        printf("\nInvalid username or password!\n");
+    }
+}
+
+void updateAge(void)
+{
+    int age;
+
+    printf("\n===== UPDATE PROFILE =====\n");
+    printf("Enter your age: ");
+
+    if (scanf("%d", &age) != 1)
+    {
+        printf("Invalid input! Please enter a whole number.\n");
+        return;
+    }
+
+    if (age < 1 || age > 120)
+    {
+        printf("Invalid age! Enter an age between 1 and 120.\n");
+        return;
+    }
+
+    printf("Age updated successfully to: %d\n", age);
+}
+
+int main(void)
+{
+    int choice;
+    char adminPassword[PASSWORD_SIZE];
+
+    printf("=================================\n");
+    printf("       SECUREVAULT SYSTEM\n");
+    printf("=================================\n");
+    printf("Configure the administrator password for this session: ");
+
+    if (scanf("%99s", adminPassword) != 1)
+    {
+        printf("Invalid password input.\n");
+        return 1;
+    }
+
+    while (1)
+    {
+        printf("\n1. Login\n");
+        printf("2. Update Age\n");
+        printf("3. Exit\n");
+        printf("\nEnter your choice: ");
+
+        if (scanf("%d", &choice) != 1)
+        {
+            printf("Invalid choice! Please enter a number.\n");
+            return 1;
+        }
+
+        switch (choice)
+        {
+            case 1:
+                login(adminPassword);
+                break;
+
+            case 2:
+                updateAge();
+                break;
+
+            case 3:
+                printf("\nExiting SecureVault...\n");
+                return 0;
+
+            default:
+                printf("\nInvalid choice!\n");
+        }
+    }
+}`}};
+
+/* ---------- Static analysis rules (run on the actual source text) ---------- */
+const RULES=[
+{id:'R1',title:'Hard-coded credential',sev:'High',cwe:'CWE-798',why:'A secret compiled into the binary can be recovered with strings or Ghidra.',fix:'Load the secret at runtime (configuration, environment, or a salted hash store). Never embed it.',t:l=>/char\s+\w*(pass|pwd|secret|key)\w*\s*\[\s*\w*\s*\]\s*=\s*"[^"]+"/i.test(l)},
+{id:'R2',title:'Unbounded scanf("%s")',sev:'High',cwe:'CWE-120',why:'No width limit means input longer than the buffer overwrites adjacent stack memory.',fix:'Add a width one less than the buffer, e.g. scanf("%19s", buf), or use fgets().',t:l=>/scanf\s*\(\s*"[^"]*%s/.test(l)},
+{id:'R3',title:'Banned libc function',sev:'High',cwe:'CWE-676',why:'gets, strcpy, strcat and sprintf do not check destination size.',fix:'Use fgets, strncpy or strlcpy, strncat, and snprintf.',t:l=>/\b(gets|strcpy|strcat|sprintf)\s*\(/.test(l)},
+{id:'R4',title:'scanf return value not checked',sev:'Medium',cwe:'CWE-252',why:'On bad input the variable keeps an old or uninitialised value and the program continues.',fix:'Compare the result with the number of expected items: if (scanf(...) != 1) { handle error }.',t:l=>/\bscanf\s*\(/.test(l)&&!/[!=]=\s*1/.test(l)},
+{id:'R5',title:'Numeric input range not validated',sev:'Medium',cwe:'CWE-20',why:'Any integer is accepted, including unrealistic or negative values.',fix:'Reject values outside the allowed range, e.g. if (age < 1 || age > 120).',t:(l,s)=>{const m=l.match(/scanf\s*\(\s*"%d"\s*,\s*&(\w+)/);if(!m)return false;const v=m[1],a=s.join('\n');return !(new RegExp('\\b'+v+'\\s*[<>]').test(a)||new RegExp('switch\\s*\\(\\s*'+v+'\\s*\\)').test(a))}}];
+const TESTS=[
+{id:'T1',n:'Overlong username (40 characters)',c:["printf '1\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nx\\n3\\n' | ./vulnerable","printf 'pw\\n1\\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\nx\\n3\\n' | ./secure"],v:'Memory corruption; may crash (stack smashing detected)',s:'Input truncated to 19 characters, program continues'},
+{id:'T2',n:'Unrealistic age (999)',c:["printf '2\\n999\\n3\\n' | ./vulnerable","printf 'pw\\n2\\n999\\n3\\n' | ./secure"],v:'Accepts 999',s:'Rejects: enter an age between 1 and 120'},
+{id:'T3',n:'Non-numeric age (abc)',c:["printf '2\\nabc\\n3\\n' | timeout 2 ./vulnerable | head -20","printf 'pw\\n2\\nabc\\n3\\n' | ./secure"],v:'Prints an uninitialised age and loops endlessly',s:'Rejects input; exits with code 1'},
+{id:'T4',n:'Static string search for the password',c:["strings vulnerable | grep Cyber","strings secure | grep Cyber"],v:'Cyber@123 is visible',s:'No match'},
+{id:'T5',n:'Valid login still works (regression)',c:["printf '1\\nalice\\nCyber@123\\n3\\n' | ./vulnerable","printf 'Cyber@123\\n1\\nalice\\nCyber@123\\n3\\n' | ./secure"],v:'Login successful',s:'Login successful'}];
+
+/* ---------- State ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let DB=[],curId=null;
+try{DB=JSON.parse(localStorage.getItem('sv_inv')||'[]')}catch(e){DB=[]}
+const save=()=>{try{localStorage.setItem('sv_inv',JSON.stringify(DB))}catch(e){}};
+const now=()=>new Date().toLocaleString();
+const log=(i,m)=>{i.log.push({t:now(),m});save()};
+const cur=()=>DB.find(i=>i.id===curId)||DB[DB.length-1];
+const status=i=>TESTS.every(t=>(i.tests[t.id]||{}).st&&i.tests[t.id].st!=='Not run')?'Complete':'In progress';
+function strip(c){return c.replace(/\/\*[\s\S]*?\*\//g,m=>m.replace(/[^\n]/g,' ')).replace(/\/\/.*$/gm,'')}
+function analyze(code){const s=strip(code).split('\n'),o=code.split('\n'),out=[];
+ s.forEach((l,i)=>RULES.forEach(r=>{if(r.t(l,s))out.push({rule:r.id,title:r.title,sev:r.sev,cwe:r.cwe,why:r.why,fix:r.fix,line:i+1,evidence:o[i].trim(),note:''})}));
+ return out.map((f,i)=>({...f,id:'SV-'+String(i+1).padStart(3,'0')}))}
+async function sha(buf){try{const h=await crypto.subtle.digest('SHA-256',buf);return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return 'unavailable (needs secure context)'}}
+async function create(title,desc,file,code){
+ const inv={id:'INV-'+String(DB.length+1).padStart(3,'0'),title,desc,file,source:code,hash:await sha(new TextEncoder().encode(code)),created:now(),findings:analyze(code),tests:{},binary:null,ghidra:'',log:[]};
+ log(inv,'Investigation created from '+file);log(inv,'Static analysis ran: '+inv.findings.length+' findings');DB.push(inv);curId=inv.id;save();return inv}
+const sevCount=(fs)=>['High','Medium','Low'].map(s=>fs.filter(f=>f.sev===s).length);
+const pick=()=>DB.length?`<div class="noprint"><label>Investigation</label><select data-act="cur">${DB.map(i=>`<option value="${i.id}" ${i.id===cur().id?'selected':''}>${i.id}: ${esc(i.title)}</option>`).join('')}</select></div>`:'';
+const empty=()=>`<div class="card"><h3>No investigation yet</h3><p class="mu">Create one from a demo sample or your own .c file.</p><a class="btn" href="#new">Start investigation</a></div>`;
+function codeView(src,fs){const m={};fs.forEach(f=>(m[f.line]=m[f.line]||[]).push(f.id));return '<pre class="code">'+src.split('\n').map((l,i)=>`<span class="${m[i+1]?'bad':''}"><b>${i+1}</b>${esc(l)||' '}${m[i+1]?`<i>${m[i+1].join(', ')}</i>`:''}</span>`).join('')+'</pre>'}
+const tag=s=>`<span class="tag ${s}">${s}</span>`;
+
+/* ---------- Views ---------- */
+const V={
+home:()=>`<section class="hero"><h1>Find, prove and document weaknesses in C programs.</h1>
+<p class="mu">SecureVault Investigator turns a reverse-engineering exercise into a repeatable investigation: analyse source, compare the vulnerable and corrected versions, inspect a compiled binary, record evidence and export a report.</p>
+<a class="btn" href="#new">Start investigation</a> <a class="btn g" href="#docs">Read the documentation</a></section>
+<h2>What it does</h2><div class="grid">
+<div class="card"><h3>Source analysis</h3><p class="mu">Rule-based scanner checks your C code line by line for hard-coded secrets, unbounded input, unsafe functions and weak validation.</p></div>
+<div class="card"><h3>Vulnerable vs secure</h3><p class="mu">Runs the same rules on both versions and shows which weaknesses were fixed.</p></div>
+<div class="card"><h3>Binary inspection</h3><p class="mu">Reads an uploaded binary locally: SHA-256, ELF or PE header, architecture, and readable strings. Ghidra findings are recorded as analyst notes.</p></div>
+<div class="card"><h3>Evidence and reports</h3><p class="mu">Numbered findings, change history, printable PDF report, JSON and CSV export.</p></div></div>
+<h2>Architecture</h2><div class="card arch"><span>Browser UI</span>→<span>Input validation</span>→<span>Rule engine</span>→<span>Local storage</span>→<span>Report and exports</span></div>
+<p class="mu">Uploaded files are read as data in the browser. Nothing is executed.</p>`,
+
+dash:()=>{const all=DB.flatMap(i=>i.findings),c=sevCount(all),mx=Math.max(1,...c);
+ return `<h1>Dashboard</h1><div class="grid"><div class="card"><div class="big">${DB.length}</div>Investigations</div><div class="card"><div class="big">${DB.filter(i=>status(i)==='Complete').length}</div>Completed (all tests recorded)</div><div class="card"><div class="big">${all.length}</div>Total findings</div></div>
+<h2>Findings by severity</h2><div class="card">${['High','Medium','Low'].map((s,k)=>`<div>${s}: ${c[k]}<div class="bar ${s}" style="width:${c[k]/mx*100}%;min-width:2px"></div></div>`).join('')}</div>
+<h2>Recent investigations</h2>${DB.length?`<div class="card wrap"><table><tr><th>ID</th><th>Title</th><th>File</th><th>Findings</th><th>Status</th><th>Created</th></tr>${[...DB].reverse().map(i=>`<tr><td>${i.id}</td><td>${esc(i.title)}</td><td>${esc(i.file)}</td><td>${i.findings.length}</td><td>${status(i)}</td><td>${i.created}</td></tr>`).join('')}</table></div>`:empty()+`<p><button class="g" data-act="seed">Load sample data (both demo programs)</button></p>`}`},
+
+new:()=>`<h1>New investigation</h1><div class="card"><div id="msg"></div>
+<label for="t">Title</label><input id="t" maxlength="80" placeholder="SecureVault login analysis">
+<label for="d">Description</label><textarea id="d" rows="3" maxlength="500"></textarea>
+<label for="s">Source</label><select id="s"><option value="vulnerable">Demo: vulnerable.c</option><option value="secure">Demo: secure.c</option><option value="upload">Upload my own .c file</option></select>
+<label for="f">C file (.c, max 100 KB)</label><input id="f" type="file" accept=".c">
+<button data-act="create">Run analysis</button></div>`,
+
+analysis:()=>{const i=cur();if(!i)return '<h1>Source analysis</h1>'+empty();
+ const V1=analyze(SAMPLES.vulnerable.code),S1=analyze(SAMPLES.secure.code);
+ return `<h1>Source analysis</h1>${pick()}<h2>${esc(i.file)}</h2><p class="mu">SHA-256 of source: <code>${i.hash}</code></p>${codeView(i.source,i.findings)}
+<h2>Detected weaknesses (${i.findings.length})</h2>${i.findings.length?i.findings.map(f=>`<div class="card" style="margin-bottom:10px"><h3>${f.id} ${tag(f.sev)} ${esc(f.title)} <span class="mu">line ${f.line}, ${f.cwe}</span></h3><p><b>Why it matters:</b> ${esc(f.why)}</p><p><b>Fix:</b> ${esc(f.fix)}</p></div>`).join(''):'<div class="msg good">No rule matched this file. This does not prove it is secure.</div>'}
+<h2>Vulnerable vs corrected (demo samples)</h2><div class="card wrap"><table><tr><th>Rule</th><th>Severity</th><th>vulnerable.c</th><th>secure.c</th></tr>${RULES.map(r=>{const a=V1.filter(f=>f.rule===r.id).length,b=S1.filter(f=>f.rule===r.id).length;return `<tr><td>${r.id} ${esc(r.title)}</td><td>${tag(r.sev)}</td><td>${a?a+' hit(s)':'clean'}</td><td>${b?b+' hit(s)':'clean'}</td></tr>`}).join('')}<tr><th colspan="2">Total findings</th><th>${V1.length}</th><th>${S1.length}</th></tr></table></div>
+<div class="two" style="margin-top:14px"><div><h3>vulnerable.c</h3>${codeView(SAMPLES.vulnerable.code,V1)}</div><div><h3>secure.c</h3>${codeView(SAMPLES.secure.code,S1)}</div></div>
+<h2>Security test cases</h2><p class="mu">These need a real run. Compile with <code>gcc source/vulnerable.c -o vulnerable</code> and <code>gcc source/secure.c -o secure</code> in Kali, run each command, then record the result. The app does not execute programs.</p>
+<div class="card wrap"><table><tr><th>Test</th><th>Commands to run</th><th>Expected</th><th>Result</th></tr>${TESTS.map(t=>{const r=i.tests[t.id]||{st:'Not run',ev:''};return `<tr><td>${t.id} ${esc(t.n)}</td><td><pre class="cmd">${esc(t.c[0])}</pre><pre class="cmd">${esc(t.c[1])}</pre></td><td><b>Vuln:</b> ${esc(t.v)}<br><b>Secure:</b> ${esc(t.s)}</td><td><select data-act="test" data-t="${t.id}">${['Not run','Pass','Fail'].map(x=>`<option ${r.st===x?'selected':''}>${x}</option>`).join('')}</select><input data-act="tev" data-t="${t.id}" placeholder="Observed output" maxlength="200" value="${esc(r.ev||'')}"></td></tr>`}).join('')}</table></div>`},
+
+binary:()=>{const i=cur();if(!i)return '<h1>Binary analysis</h1>'+empty();const b=i.binary;
+ return `<h1>Binary analysis</h1>${pick()}<div class="card"><div id="msg"></div><label for="b">Compiled binary (max 5 MB)</label><input id="b" type="file" data-act="bin"><p class="mu">The file is read as bytes in your browser. It is never executed or uploaded. This tool reads headers, hashes and strings only. It does not disassemble code or detect malware.</p></div>
+${b?`<h2>Extracted metadata</h2><div class="card wrap"><table>${[['File name',b.name],['Size',b.size+' bytes'],['SHA-256',b.hash],['Format',b.fmt],['Architecture',b.arch],['Type',b.type],['Strings found',b.nstr]].map(r=>`<tr><th>${r[0]}</th><td>${esc(r[1])}</td></tr>`).join('')}</table></div>
+<h2>Interesting strings (observed)</h2><div class="card">${b.hits.length?b.hits.map(s=>`<pre class="cmd">${esc(s)}</pre>`).join(''):'<p class="mu">No credential-like strings found.</p>'}</div>`:''}
+<h2>Ghidra notes (analyst interpretation)</h2><p class="mu">Record what you saw in Ghidra: function names, decompiled checks, where the password string appears. These are your notes, not tool output.</p><textarea rows="6" data-act="ghidra" maxlength="3000">${esc(i.ghidra||'')}</textarea>`},
+
+findings:()=>{const i=cur();if(!i)return '<h1>Findings and evidence</h1>'+empty();
+ return `<h1>Findings and evidence</h1>${pick()}<div class="card wrap"><table><tr><th>ID</th><th>Severity</th><th>Component</th><th>Observed evidence</th><th>Remediation</th><th>Analyst interpretation</th></tr>${i.findings.map((f,k)=>`<tr><td>${f.id}</td><td>${tag(f.sev)}</td><td>${esc(i.file)}:${f.line}<br><span class="mu">${f.cwe}</span><br>${esc(f.title)}</td><td><code>${esc(f.evidence)}</code></td><td>${esc(f.fix)}</td><td><textarea rows="3" data-act="fnote" data-k="${k}" maxlength="500">${esc(f.note)}</textarea></td></tr>`).join('')}</table></div>
+<h2>Change history</h2><div class="card">${i.log.map(l=>`<div><span class="mu">${l.t}</span> ${esc(l.m)}</div>`).join('')}</div>`},
+
+report:()=>{const i=cur();if(!i)return '<h1>Report</h1>'+empty();const c=sevCount(i.findings);
+ return `<h1>Investigation report</h1>${pick()}<p class="noprint"><button data-act="print">Print or save as PDF</button> <button class="g" data-act="json">Export JSON</button> <button class="g" data-act="csv">Export CSV</button></p>
+<div class="card"><h2 style="margin-top:0">${esc(i.title)}</h2><p>${esc(i.desc)||'No description.'}</p><p class="mu">${i.id}, created ${i.created}. Source: ${esc(i.file)}. SHA-256: <code>${i.hash}</code>. Status: ${status(i)}.</p>
+<h3>Methodology</h3><p>Rule-based static analysis of the C source (rules R1 to R5), manual execution of predefined test cases, and inspection of the compiled binary in Ghidra.</p>
+<h3>Summary</h3><p>${i.findings.length} findings: ${c[0]} high, ${c[1]} medium, ${c[2]} low.</p>
+<h3>Findings</h3><table><tr><th>ID</th><th>Sev.</th><th>Location</th><th>Evidence</th><th>Remediation</th><th>Analyst note</th></tr>${i.findings.map(f=>`<tr><td>${f.id}</td><td>${f.sev}</td><td>${f.cwe}, line ${f.line}</td><td><code>${esc(f.evidence)}</code></td><td>${esc(f.fix)}</td><td>${esc(f.note)}</td></tr>`).join('')}</table>
+<h3>Test results</h3><table><tr><th>Test</th><th>Result</th><th>Observed</th></tr>${TESTS.map(t=>{const r=i.tests[t.id]||{st:'Not run'};return `<tr><td>${t.id} ${esc(t.n)}</td><td>${r.st}</td><td>${esc(r.ev||'')}</td></tr>`}).join('')}</table>
+<h3>Binary evidence</h3><p>${i.binary?`${esc(i.binary.name)}: ${esc(i.binary.fmt)}, ${esc(i.binary.arch)}, SHA-256 ${i.binary.hash}`:'No binary recorded.'}</p><p><b>Ghidra notes (analyst):</b> ${esc(i.ghidra)||'None.'}</p>
+<h3>Limitations</h3><p>Pattern-based rules can miss flaws and can raise false positives. Test execution and Ghidra review are manual. No disassembly or malware detection is performed.</p>
+<h3>Recommendations</h3><p>Apply each remediation above, rebuild with warnings enabled (<code>-Wall -Wextra</code>), and rerun all tests.</p></div>`},
+
+docs:()=>`<h1>Documentation</h1><div class="grid"><div class="card"><h3>Architecture</h3><p class="mu">Single-page web app. Input validation, rule engine, report builder and storage all run in the browser. Investigations are saved in the browser’s local storage, so they stay on this machine.</p></div>
+<div class="card"><h3>How to use</h3><p class="mu">1. Create an investigation. 2. Review detected weaknesses. 3. Compile and run the test commands in Kali, record results. 4. Add the binary and Ghidra notes. 5. Edit findings. 6. Print or export the report.</p></div>
+<div class="card"><h3>Security controls</h3><p class="mu">Strict file extension and size limits, all output HTML-escaped, files read as data only, CSV export guards against formula injection, no secrets, no network calls.</p></div>
+<div class="card"><h3>Limitations</h3><p class="mu">The scanner uses patterns, not a full C parser. Programs are not executed by the app. There is no server or user login yet. Clearing browser data deletes investigations.</p></div>
+<div class="card"><h3>Planned upgrade</h3><p class="mu">FastAPI backend with SQLite, sandboxed gcc build and test runs, and Ghidra headless import.</p></div></div>
+<h2>Settings</h2><button class="g" data-act="reset">Delete all stored investigations</button>`};
+
+function render(){const h=(location.hash||'#home').slice(1);document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+h));$('#app').innerHTML=(V[h]||V.home)();scrollTo(0,0)}
+const msg=(t,c)=>{const m=$('#msg');if(m)m.innerHTML=`<div class="msg ${c}">${esc(t)}</div>`};
+async function dl(name,text){try{const d=await claude.use('downloads');if(!d)return alert('Saving files is not available in this view.');await d.save({filename:name,data:text})}catch(e){if(!e||e.code!=='declined')alert('Could not save the file.')}}
+const cell=v=>{v=String(v??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'};
+
+/* ---------- Events ---------- */
+document.addEventListener('click',async e=>{const a=e.target.closest('[data-act]');if(!a)return;const act=a.dataset.act,i=cur();
+ if(act==='create'){
+  const t=$('#t').value.trim(),d=$('#d').value.trim(),s=$('#s').value;
+  if(t.length<3||t.length>80)return msg('Title must be 3 to 80 characters.','err');
+  if(!['vulnerable','secure','upload'].includes(s))return msg('Invalid source selection.','err');
+  let name,code;
+  if(s==='upload'){const f=$('#f').files[0];
+   if(!f)return msg('Choose a .c file to upload.','err');
+   if(!/^[\w.\-]+\.c$/i.test(f.name))return msg('Only .c files with a simple file name are allowed.','err');
+   if(f.size===0)return msg('The file is empty.','err');
+   if(f.size>102400)return msg('File is larger than 100 KB.','err');
+   code=await f.text();if(code.includes('\u0000')||/\uFFFD/.test(code))return msg('This is not a plain-text C file.','err');name=f.name}
+  else{name=SAMPLES[s].name;code=SAMPLES[s].code}
+  msg('Analysing…','good');await create(t,d,name,code);location.hash='#analysis'}
+ if(act==='seed'){await create('Demo: vulnerable program','Baseline vulnerable implementation','vulnerable.c',SAMPLES.vulnerable.code);await create('Demo: corrected program','Hardened implementation','secure.c',SAMPLES.secure.code);render()}
+ if(act==='print')print();
+ if(act==='json')dl(i.id+'.json',JSON.stringify(i,null,2));
+ if(act==='csv')dl(i.id+'-findings.csv',['ID,Severity,Rule,CWE,Line,Evidence,Remediation,Analyst note',...i.findings.map(f=>[f.id,f.sev,f.title,f.cwe,f.line,f.evidence,f.fix,f.note].map(cell).join(','))].join('\n'));
+ if(act==='reset'&&confirm('Delete all investigations?')){DB=[];save();location.hash='#home';render()}});
+document.addEventListener('change',async e=>{const a=e.target.closest('[data-act]');if(!a)return;const act=a.dataset.act,i=cur();
+ if(act==='cur'){curId=a.value;render()}
+ if(act==='test'){(i.tests[a.dataset.t]=i.tests[a.dataset.t]||{}).st=a.value;log(i,a.dataset.t+' marked '+a.value)}
+ if(act==='tev'){(i.tests[a.dataset.t]=i.tests[a.dataset.t]||{st:'Not run'}).ev=a.value;save()}
+ if(act==='fnote'){const f=i.findings[a.dataset.k];f.note=a.value;log(i,f.id+' analyst note edited')}
+ if(act==='ghidra'){i.ghidra=a.value;log(i,'Ghidra notes updated')}
+ if(act==='bin'){const f=a.files[0];if(!f)return;if(f.size===0)return msg('The file is empty.','err');if(f.size>5242880)return msg('File is larger than 5 MB.','err');
+  const buf=await f.arrayBuffer(),u=new Uint8Array(buf),dv=new DataView(buf);let fmt='Unrecognised (not ELF or PE)',arch='n/a',type='n/a';
+  const M={3:'x86 (32-bit)',62:'x86-64',40:'ARM',183:'AArch64',243:'RISC-V'},T={1:'Relocatable',2:'Executable',3:'Shared object / PIE',4:'Core'};
+  if(u[0]===0x7f&&u[1]===0x45&&u[2]===0x4c&&u[3]===0x46&&u.length>=20){const le=u[5]!==2;fmt='ELF '+(u[4]===2?'64-bit':'32-bit')+(le?' little-endian':' big-endian');arch=M[dv.getUint16(18,le)]||'Other (code '+dv.getUint16(18,le)+')';type=T[dv.getUint16(16,le)]||'Unknown'}
+  else if(u[0]===0x4d&&u[1]===0x5a&&u.length>64){const p=dv.getUint32(0x3c,true);if(p+6<u.length&&dv.getUint32(p,true)===0x4550){fmt='PE (Windows)';const m=dv.getUint16(p+4,true);arch={0x14c:'x86 (32-bit)',0x8664:'x86-64',0xaa64:'ARM64'}[m]||'Other';type='Portable Executable'}}
+  const strs=(new TextDecoder('latin1').decode(u).match(/[\x20-\x7e]{6,}/g)||[]);
+  i.binary={name:f.name.replace(/[^\w.\-]/g,'_'),size:f.size,hash:await sha(buf),fmt,arch,type,nstr:strs.length,hits:strs.filter(s=>/pass|secret|cyber@|admin|login/i.test(s)).slice(0,20)};
+  log(i,'Binary metadata recorded: '+i.binary.name);render()}});
+addEventListener('hashchange',render);render();
+</script></body></html>
